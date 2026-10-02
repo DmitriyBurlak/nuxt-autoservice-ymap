@@ -2,6 +2,10 @@ stages:
   - deploy
   - cleanup
 
+# Раннер с docker executor: job-ам нужен образ с docker CLI и compose
+default:
+  image: docker:cli
+
 workflow:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -15,6 +19,9 @@ deploy:
     - nuxt-autoservice-runner
   script:
     - echo "Deploying application... '$CI_COMMIT_BRANCH'"
+    # Ключи — в Settings → CI/CD → Variables
+    - echo "NUXT_PUBLIC_YANDEX_MAPS_APIKEY=$NUXT_PUBLIC_YANDEX_MAPS_APIKEY" > .env
+    - echo "NUXT_PUBLIC_YMAPS2_APIKEY=$NUXT_PUBLIC_YMAPS2_APIKEY" >> .env
     # Сначала собираем (внутри — lint и тесты): если сборка упадёт, старый контейнер продолжит работать
     - docker compose -p $image_path -f $compose_path --env-file .env build
     - docker compose -p $image_path -f $compose_path --env-file .env up -d --remove-orphans
