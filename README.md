@@ -1,93 +1,113 @@
-# Autoservice Map
+# Автосервисы на карте
 
+> Interactive map demo on **Nuxt 4 + Yandex Maps JS API 3.0**: random autoservice points, clustering,
+> rich hover tooltips, geolocation and driving routes from the user to a service.
 
+Демо-приложение, показывающее работу с Яндекс.Картами во Vue/Nuxt: на карте случайно генерируются
+автосервисы, при наведении — тултип с рейтингом и информацией, по клику — карточка, а от вашего
+местоположения до сервиса строится автомаршрут с расстоянием и временем в пути.
 
-## Getting started
+## Возможности
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- **Случайные точки по seed.** Автосервисы генерируются на клиенте детерминированным PRNG
+  (mulberry32). Seed хранится в URL — ссылкой можно поделиться, точки будут те же.
+- **Кластеры.** Несколько сервисов по одному адресу («автокомплекс») схлопываются в один пин со
+  счётчиком; по наведению (на мобильных — по тапу) открывается список с выбором.
+- **Тултипы и карточка.** Рейтинг звёздами с дробным заполнением, отзывы, статус «открыто/закрыто»
+  по текущему времени (в т.ч. график через полночь), услуги, цена, расстояние от вас.
+- **Геолокация.** Метка «Я» по `navigator.geolocation`; если доступа нет — центр города и
+  пометка «примерно». Метку можно перетащить — расстояния и маршрут пересчитываются.
+- **Маршрут до сервиса.** Реальный автомаршрут: км, время в пути, линия на карте, подгонка
+  области под маршрут, ссылка «открыть в Яндекс.Картах».
+- **Фильтры и сортировка.** Категории услуг, минимальный рейтинг, «открыто сейчас», премиум;
+  сортировка по расстоянию, рейтингу, цене. Всё состояние — в query-параметрах.
+- **Список ↔ карта.** Наведение на элемент списка подсвечивает пин, выбор на карте прокручивает список.
+- **«Живая карта».** Новые точки появляются на карте раз в пару секунд с анимацией.
+- **Адаптив.** На мобильных — карточка снизу, список и фильтры в шторке.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Стек
 
-## Add your files
+Nuxt 4 (SPA, `ssr: false`) · Vue 3.5 + TypeScript · Nuxt UI 4 · Tailwind CSS 4 ·
+[vue-yandex-maps](https://github.com/yandex-maps-unofficial/vue-yandex-maps) (JS API 3.0) ·
+Vitest · ESLint
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Как устроено
+
+### Маршрут: JS API 2.1 внутри карты 3.0
+
+В JS API 3.0 нет маршрутизатора. Поэтому `buildYandexRoute` лениво подгружает JS API 2.1,
+строит `multiRouter.MultiRoute` на невидимой карте 2.1, забирает геометрию, расстояние и время,
+переводит координаты `[lat, lng]` → `[lng, lat]` и отдаёт их карте 3.0, где маршрут рисуется
+обычным `LineString`.
+
+Если ключ 2.1 не задан или Яндекс вернул ошибку — маршрут строится через публичный
+[OSRM](https://project-osrm.org/) (OpenStreetMap, без ключа). Гонки запросов при перетаскивании
+метки отсекаются через `AbortController` и сверку ключа точек.
+
+### Архитектура (Feature-Sliced Design)
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/DmShade/autoservice-map.git
-git branch -M main
-git push -uf origin main
+app/src/
+├─ 1_pages/map-page/          страница: композиция виджетов, URL-состояние, «живая карта»
+├─ 2_widgets/
+│  ├─ autoservices-map/       карта: маркеры, кластеры, тултипы, метка «Я»
+│  └─ autoservices-list/      боковой список
+├─ 3_features/
+│  ├─ map-filters/            фильтры и сортировка (чистая функция applyFilters)
+│  ├─ route-to-service/       маршрут «я → сервис»
+│  └─ user-location/          геолокация
+├─ 4_entities/autoservice/    модель, генератор, график работы, тултипы, карточка
+└─ 5_shared/
+   ├─ lib/                    geo (haversine), группировка по координатам, PRNG, форматтеры
+   └─ ui/yandex-map/          обёртка над картой, пины, маршрутизация (Яндекс 2.1 / OSRM)
 ```
 
-## Integrate with your tools
+Слой `5_shared/ui/yandex-map` не знает про автосервисы: `YMap` типизирован дженериком по маркеру
+и отдаёт его в слот, так что тот же компонент подходит для любых точек.
 
-* [Set up project integrations](https://gitlab.com/DmShade/autoservice-map/-/settings/integrations)
+## Запуск
 
-## Collaborate with your team
+Нужен Node.js ≥ 22 и pnpm.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```bash
+pnpm install
+cp .env.example .env   # и впишите ключи
+pnpm dev               # http://localhost:3000
+```
 
-## Test and Deploy
+### Ключи Яндекс.Карт
 
-Use the built-in continuous integration in GitLab.
+В [кабинете разработчика](https://developer.tech.yandex.ru/services) получите ключ
+**JavaScript API и HTTP Геокодер**:
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+| Переменная | Зачем | Обязательна |
+|---|---|---|
+| `NUXT_PUBLIC_YANDEX_MAPS_APIKEY` | карта (JS API 3.0) | да |
+| `NUXT_PUBLIC_YMAPS2_APIKEY` | маршруты через Яндекс (JS API 2.1) | нет — без него OSRM |
 
-***
+Можно указать один и тот же ключ в обе переменные. Ключ попадает в клиентский бандл —
+в настройках ключа **ограничьте его по HTTP Referer** (`localhost` и домен деплоя).
 
-# Editing this README
+### Скрипты
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+| Команда | Что делает |
+|---|---|
+| `pnpm dev` | дев-сервер |
+| `pnpm generate` | статическая сборка в `.output/public` |
+| `pnpm test` | unit-тесты (генератор, гео, фильтры, график работы) |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | проверка типов (vue-tsc) |
 
-## Suggestions for a good README
+## Деплой на GitHub Pages
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Workflow `.github/workflows/deploy.yml` на каждый push в `main` прогоняет линт и тесты,
+собирает статику и публикует её.
 
-## Name
-Choose a self-explaining name for your project.
+1. **Settings → Pages → Source:** GitHub Actions.
+2. **Settings → Secrets and variables → Actions → Variables:** `YANDEX_MAPS_APIKEY` и
+   (необязательно) `YMAPS2_APIKEY`.
+3. В ограничениях ключа добавьте `<user>.github.io`.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## Данные
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Все автосервисы, адреса, телефоны и отзывы вымышлены и генерируются случайно.

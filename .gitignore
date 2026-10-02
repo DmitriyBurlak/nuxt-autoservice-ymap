@@ -1,0 +1,30 @@
+# Nuxt
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+docs
+
+# Node
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Рабочий план переноса — содержит пути исходного проекта, в репозиторий не публикуем
+docs/plan.md
