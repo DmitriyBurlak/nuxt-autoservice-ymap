@@ -98,16 +98,6 @@ pnpm dev               # http://localhost:3000
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | проверка типов (vue-tsc) |
 
-## Деплой на GitHub Pages
-
-Workflow `.github/workflows/deploy.yml` на каждый push в `main` прогоняет линт и тесты,
-собирает статику и публикует её.
-
-1. **Settings → Pages → Source:** GitHub Actions.
-2. **Settings → Secrets and variables → Actions → Variables:** `YANDEX_MAPS_APIKEY` и
-   (необязательно) `YMAPS2_APIKEY`.
-3. В ограничениях ключа добавьте `<user>.github.io`.
-
 ## Данные
 
 Все автосервисы, адреса, телефоны и отзывы вымышлены и генерируются случайно.
