@@ -1,0 +1,31 @@
+stages:
+  - deploy
+  - cleanup
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        image_path: "autoservice-map"
+        compose_path: "docker-compose.yml"
+
+deploy:
+  stage: deploy
+  tags:
+    - nuxt-autoservice-runner
+  script:
+    - echo "Deploying application... '$CI_COMMIT_BRANCH'"
+    # Сначала собираем (внутри — lint и тесты): если сборка упадёт, старый контейнер продолжит работать
+    - docker compose -p $image_path -f $compose_path --env-file .env build
+    - docker compose -p $image_path -f $compose_path --env-file .env up -d --remove-orphans
+
+cleanup:
+  stage: cleanup
+  tags:
+    - nuxt-autoservice-runner
+  script:
+    - docker system prune -af --volumes
+    - docker builder prune --all --force
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"
+  when: on_success
